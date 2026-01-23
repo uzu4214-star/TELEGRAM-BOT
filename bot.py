@@ -14,64 +14,87 @@ from telegram.ext import (
 )
 
 # ================== SOZLAMALAR ==================
-BOT_TOKEN = "8410700261:AAHWSOzeVIE6eztP_dHakIMVcH_y4NJF0Ng"
-ADMIN_ID = 6417772942  # <-- o'zingning telegram ID
+BOT_TOKEN = "BOT_TOKENINGNI_BU_YERGA_QO‘Y"
+ADMIN_ID = 6417772942
 
+# 🔒 MAJBURIY KANAL
+REQUIRED_CHANNEL = "@furry_uz_ff"
+
+# 💳 KARTA
 CARD_NUMBER = "9860 6067 5181 1385"
 CARD_OWNER = "A/D"
 
 # ================== DATA ==================
-balances = {}          # user_id: balance
-pending_topups = {}    # user_id: {"amount": int, "photo": file_id}
+balances = {}
+pending_topups = {}
 
+# ================== MAHSULOTLAR ==================
 PRODUCTS = {
     "poco": {
-        "name": "Poco Redmi 100% Hedshot",
+        "name": "🎯 Poco Redmi 100% Headshot",
         "price": 50000,
-        "ban": "50/50 tenovay ban",
-        "desc": "Bu chit 100% hedshot beradi.\n95% bezban.\nO‘rnatish videosi mavjud.",
+        "ban": "⚠️ 50/50",
+        "desc": "🔥 100% headshot\n🛡 95% bezban\n🎥 Video qo‘llanma bor",
         "channel": "https://t.me/+PtwQWwC6nqs3OGZi",
     },
     "wallhack": {
-        "name": "Odam ko‘rsatadigan",
+        "name": "👁 WallHack",
         "price": 20000,
-        "ban": "50/50 tenovay ban",
-        "desc": "Bu chit odamlarni ko‘rsatadi.\n60% bezban.",
+        "ban": "⚠️ 50/50",
+        "desc": "👥 Odamlarni ko‘rsatadi\n🛡 60% bezban",
         "channel": "https://t.me/+PtwQWwC6nqs3OGZi",
     },
     "panel30": {
-        "name": "30% Panel",
+        "name": "📊 30% Panel",
         "price": 10000,
-        "ban": "0% ban",
-        "desc": "30% hedshot.\nArzon va yengil.",
+        "ban": "✅ 0%",
+        "desc": "🎯 30% headshot\n💸 Arzon va yengil",
         "channel": "https://t.me/+FSu_4yZ1CRplNWEy",
     },
     "vzlom": {
-        "name": "Free Fire Vzlom",
+        "name": "💎 Free Fire Vzlom",
         "price": 35000,
-        "ban": "⚠️ xavfli",
-        "desc": "Almaz VIP bo‘ladi.\n100% ishlaydi.",
+        "ban": "✅ 0%",
+        "desc": "💎 Almaz + VIP\n🚀 Ishlaydi",
         "channel": "https://t.me/+PtwQWwC6nqs3OGZi",
     },
     "skin": {
-        "name": "Skin Hack",
+        "name": "🎭 Skin Hack",
         "price": 25000,
-        "ban": "0% ban",
-        "desc": "Skinlar ochiladi.\nXavfsiz.",
+        "ban": "✅ 0%",
+        "desc": "🎨 Skinlar ochiladi\n🔐 Xavfsiz",
         "channel": "https://t.me/+Kx14tGtORjxlMzdi",
     },
 }
+
+# ================== MAJBURIY OBUNA TEKSHIRISH ==================
+async def check_sub(user_id, bot):
+    try:
+        member = await bot.get_chat_member(REQUIRED_CHANNEL, user_id)
+        return member.status in ["member", "administrator", "creator"]
+    except:
+        return False
 
 # ================== START ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     balances.setdefault(user_id, 0)
 
+    if not await check_sub(user_id, context.bot):
+        keyboard = [[
+            InlineKeyboardButton("📢 Kanalga obuna bo‘lish", url=f"https://t.me/{REQUIRED_CHANNEL.replace('@','')}"),
+            InlineKeyboardButton("✅ Tekshirish", callback_data="check_sub")
+        ]]
+        await update.message.reply_text(
+            "🔒 Botdan foydalanish uchun kanalga obuna bo‘ling!",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
     text = (
         "👋 Assalomu alaykum!\n\n"
-        "Bu bot orqali siz Free Fire uchun "
-        "arzon va sifatli chitlarni sotib olishingiz mumkin.\n\n"
-        "⬇️ Quyidagi menyudan foydalaning:"
+        "🔥 Free Fire uchun chitlar do‘koni\n"
+        "⬇️ Kerakli bo‘limni tanlang:"
     )
 
     keyboard = [
@@ -80,131 +103,96 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("➕ Hisob to‘ldirish", callback_data="topup")],
     ]
 
-    if update.message:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
-    else:
-        await update.callback_query.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-# ================== BUTTONS ==================
+# ================== BUTTONLAR ==================
 async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-    data = q.data
     user_id = q.from_user.id
     balances.setdefault(user_id, 0)
 
-    # -------- PRODUCTS LIST --------
-    if data == "products":
-        keyboard = []
-        for key, p in PRODUCTS.items():
-            keyboard.append([InlineKeyboardButton(p["name"], callback_data=f"prod_{key}")])
-        keyboard.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="back")])
+    if q.data == "check_sub":
+        if await check_sub(user_id, context.bot):
+            await start(update, context)
+        else:
+            await q.message.reply_text("❌ Avval kanalga obuna bo‘ling!")
 
+    elif q.data == "products":
+        keyboard = [
+            [InlineKeyboardButton(p["name"], callback_data=f"prod_{k}")]
+            for k, p in PRODUCTS.items()
+        ]
+        keyboard.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="back")])
         await q.message.reply_text("🛒 Mahsulotlar:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-    # -------- PRODUCT INFO --------
-    elif data.startswith("prod_"):
-        key = data.replace("prod_", "")
+    elif q.data.startswith("prod_"):
+        key = q.data.replace("prod_", "")
         p = PRODUCTS[key]
-
         text = (
-            f"📦 {p['name']}\n\n"
+            f"{p['name']}\n\n"
             f"{p['desc']}\n\n"
             f"🚫 Ban ehtimoli: {p['ban']}\n"
             f"💰 Narx: {p['price']} so‘m"
         )
-
         keyboard = [
             [InlineKeyboardButton("🛒 Sotib olish", callback_data=f"buy_{key}")],
             [InlineKeyboardButton("⬅️ Orqaga", callback_data="products")],
         ]
-
         await q.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-    # -------- BUY --------
-    elif data.startswith("buy_"):
-        key = data.replace("buy_", "")
+    elif q.data.startswith("buy_"):
+        key = q.data.replace("buy_", "")
         p = PRODUCTS[key]
-
         if balances[user_id] < p["price"]:
-            await q.message.reply_text("❌ Mablag‘ yetarli emas")
+            await q.message.reply_text("❌ Mablag‘ yetarli emas!")
             return
-
         balances[user_id] -= p["price"]
+        await q.message.reply_text(f"✅ Sotib olindi!\n📢 Kanal: {p['channel']}")
 
-        await q.message.reply_text(
-            f"✅ Sotib olindi!\n\n"
-            f"📢 Chit shu kanalda:\n{p['channel']}"
-        )
+    elif q.data == "balance":
+        await q.message.reply_text(f"💰 Balans: {balances[user_id]} so‘m")
 
-    # -------- BALANCE --------
-    elif data == "balance":
-        await q.message.reply_text(f"💰 Balansingiz: {balances[user_id]} so‘m")
-
-    # -------- TOPUP --------
-    elif data == "topup":
+    elif q.data == "topup":
         context.user_data["await_amount"] = True
-        await q.message.reply_text("💳 Qancha summa to‘ldirmoqchisiz?")
+        await q.message.reply_text("💳 Qancha summa kiritasiz?")
 
-    # -------- BACK --------
-    elif data == "back":
+    elif q.data == "back":
         await start(update, context)
 
-    # -------- ADMIN CONFIRM --------
-    elif data.startswith("confirm_"):
-        uid = int(data.replace("confirm_", ""))
-        if uid in pending_topups:
-            balances[uid] += pending_topups[uid]["amount"]
-            del pending_topups[uid]
-            await q.message.reply_text("✅ To‘lov tasdiqlandi")
-            await context.bot.send_message(uid, "✅ Hisobingiz to‘ldirildi")
-
-    elif data.startswith("reject_"):
-        uid = int(data.replace("reject_", ""))
-        pending_topups.pop(uid, None)
-        await q.message.reply_text("❌ To‘lov rad etildi")
-
-# ================== TEXT HANDLER ==================
+# ================== TEXT ==================
 async def texts(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-
     if context.user_data.get("await_amount"):
         amount = int(update.message.text)
-        context.user_data["await_amount"] = False
+        context.user_data.clear()
         context.user_data["await_photo"] = True
         context.user_data["amount"] = amount
-
         await update.message.reply_text(
-            f"💳 Karta:\n{CARD_NUMBER}\n{CARD_OWNER}\n\n"
-            f"{amount} so‘m to‘lang va chek rasmini yuboring"
+            f"💳 {CARD_NUMBER}\n👤 {CARD_OWNER}\n\n"
+            f"{amount} so‘m to‘lab, chek rasmini yuboring 📸"
         )
 
-# ================== PHOTO HANDLER ==================
+# ================== PHOTO ==================
 async def photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-
     if context.user_data.get("await_photo"):
-        context.user_data["await_photo"] = False
+        user_id = update.effective_user.id
         amount = context.user_data["amount"]
         photo = update.message.photo[-1].file_id
+        pending_topups[user_id] = {"amount": amount}
 
-        pending_topups[user_id] = {"amount": amount, "photo": photo}
-
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"confirm_{user_id}"),
-                InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_{user_id}"),
-            ]
-        ]
+        keyboard = [[
+            InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"confirm_{user_id}"),
+            InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_{user_id}")
+        ]]
 
         await context.bot.send_photo(
             ADMIN_ID,
             photo,
-            caption=f"💰 To‘lov so‘rovi\nUser: {user_id}\nSumma: {amount}",
-            reply_markup=InlineKeyboardMarkup(keyboard),
+            caption=f"💰 To‘lov\n👤 {user_id}\n💵 {amount} so‘m",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-        await update.message.reply_text("⏳ To‘lov admin tomonidan tekshirilmoqda")
+        await update.message.reply_text("⏳ Admin tekshiryapti...")
 
 # ================== MAIN ==================
 def main():
@@ -221,3 +209,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
