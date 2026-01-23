@@ -14,7 +14,7 @@ from telegram.ext import (
 )
 
 # ================== SOZLAMALAR ==================
-BOT_TOKEN = "BOT_TOKENINGNI_BU_YERGA_QO‘Y"
+BOT_TOKEN = "8410700261:AAHWSOzeVIE6eztP_dHakIMVcH_y4NJF0Ng"
 ADMIN_ID = 6417772942
 
 # 🔒 MAJBURIY KANAL
@@ -209,4 +209,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
