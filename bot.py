@@ -11,7 +11,7 @@ from telegram.ext import (
 )
 
 # ================== SOZLAMALAR ==================
-BOT_TOKEN = os.getenv("BOT_TOKEN") or "BOT_TOKENINGNI_BU_YERGA_QO'Y"
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "8410700261:AAHr997ntSujjgECJdWTCxZPziLAhMxuY7I"
 ADMIN_ID = 6417772942
 
 REQUIRED_CHANNEL = "@furry_uz_ff"
@@ -259,3 +259,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
