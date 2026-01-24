@@ -1,10 +1,6 @@
 import logging
 import os
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -15,7 +11,7 @@ from telegram.ext import (
 )
 
 # ================== SOZLAMALAR ==================
-BOT_TOKEN = os.getenv("BOT_TOKEN") or "8410700261:AAHr997ntSujjgECJdWTCxZPziLAhMxuY7I"
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "BOT_TOKENINGNI_BU_YERGA_QO'Y"
 ADMIN_ID = 6417772942
 
 REQUIRED_CHANNEL = "@furry_uz_ff"
@@ -27,6 +23,14 @@ CARD_OWNER = "A/D"
 # ================== DATA ==================
 balances = {}
 pending_topups = {}
+used_promos_by_user = {}
+
+PROMOCODES = {
+    "KANAL": {"amount": 5000, "used": False},
+    "FFWS": {"amount": 5000, "used": False},
+    "ROMA": {"amount": 50000, "used": False},
+    "UZ": {"amount": 500, "used": "per_user"},
+}
 
 PRODUCTS = {
     "panel30": {
@@ -47,23 +51,22 @@ PRODUCTS = {
         "name": "💎 Free Fire Vzlom Menu",
         "price": 35000,
         "ban": "0% ban",
-        "desc": "💰 VIP / Almaz\n⚠️ Xavf yo‘q",
+        "desc": "💰 VIP / Almaz\n🔒 Xavfsiz",
         "channel": "https://t.me/+PtwQWwC6nqs3OGZi",
     },
     "skin": {
         "name": "🎨 Skin Hack",
         "price": 7000,
         "ban": "0% ban",
-        "desc": "🧥 Barcha skinlar ochiladi\n🔒 Xavfsiz",
+        "desc": "🧥 Barcha skinlar ochiladi",
         "channel": "https://t.me/+Kx14tGtORjxlMzdi",
     },
 }
 
 # ================== KANAL TEKSHIRISH ==================
 async def check_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
     try:
-        member = await context.bot.get_chat_member(REQUIRED_CHANNEL, user_id)
+        member = await context.bot.get_chat_member(REQUIRED_CHANNEL, update.effective_user.id)
         return member.status in ["member", "administrator", "creator"]
     except:
         return False
@@ -72,6 +75,7 @@ async def check_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     balances.setdefault(user_id, 0)
+    used_promos_by_user.setdefault(user_id, set())
 
     if not await check_sub(update, context):
         text = "🔒 Botdan foydalanish uchun kanalga obuna bo‘ling!"
@@ -82,13 +86,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         text = (
             "👋 Assalomu alaykum!\n\n"
-            "🎮 Free Fire uchun eng zo‘r chitlar!\n"
+            "🎮 Free Fire chit do‘koni\n\n"
             "⬇️ Menyudan tanlang:"
         )
         keyboard = [
             [InlineKeyboardButton("🛒 Mahsulotlar", callback_data="products")],
-            [InlineKeyboardButton("💰 Hisobim", callback_data="balance")],
+            [InlineKeyboardButton("💰 Balans", callback_data="balance")],
             [InlineKeyboardButton("➕ Hisob to‘ldirish", callback_data="topup")],
+            [InlineKeyboardButton("🎟 Promokod", callback_data="promo")],
         ]
 
     if update.message:
@@ -100,89 +105,117 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-    data = q.data
     user_id = q.from_user.id
-    balances.setdefault(user_id, 0)
+    data = q.data
 
     if data == "check_sub":
         await start(update, context)
 
     elif data == "products":
-        keyboard = [
-            [InlineKeyboardButton(p["name"], callback_data=f"prod_{k}")]
-            for k, p in PRODUCTS.items()
-        ]
+        keyboard = [[InlineKeyboardButton(p["name"], callback_data=f"prod_{k}")]
+                    for k, p in PRODUCTS.items()]
         keyboard.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="back")])
         await q.message.edit_text("🛒 Mahsulotlar:", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("prod_"):
-        key = data.replace("prod_", "")
-        p = PRODUCTS[key]
+        k = data.replace("prod_", "")
+        p = PRODUCTS[k]
         text = (
-            f"{p['name']}\n\n"
-            f"{p['desc']}\n\n"
-            f"🚫 Ban: {p['ban']}\n"
-            f"💰 Narx: {p['price']} so‘m"
+            f"{p['name']}\n\n{p['desc']}\n\n"
+            f"🚫 Ban: {p['ban']}\n💰 Narx: {p['price']} so‘m"
         )
         keyboard = [
-            [InlineKeyboardButton("🛒 Sotib olish", callback_data=f"buy_{key}")],
+            [InlineKeyboardButton("🛒 Sotib olish", callback_data=f"buy_{k}")],
             [InlineKeyboardButton("⬅️ Orqaga", callback_data="products")],
         ]
         await q.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("buy_"):
-        key = data.replace("buy_", "")
-        p = PRODUCTS[key]
-
+        k = data.replace("buy_", "")
+        p = PRODUCTS[k]
         if balances[user_id] < p["price"]:
             await q.message.reply_text("❌ Mablag‘ yetarli emas")
             return
-
         balances[user_id] -= p["price"]
-        await q.message.reply_text(
-            f"✅ Xarid qilindi!\n\n"
-            f"📢 Yuklab olish shu kanalda:\n{p['channel']}"
-        )
+        await q.message.reply_text(f"✅ Xarid qilindi!\n\n📢 {p['channel']}")
 
     elif data == "balance":
         await q.message.reply_text(f"💰 Balansingiz: {balances[user_id]} so‘m")
 
     elif data == "topup":
         context.user_data["await_amount"] = True
-        await q.message.reply_text("💳 Qancha summa kiritasiz?")
+        await q.message.reply_text(
+            "💳 Qancha summa kiritasiz?",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("❌ Bekor qilish", callback_data="back")]]
+            ),
+        )
+
+    elif data == "promo":
+        context.user_data["await_promo"] = True
+        await q.message.reply_text("🎟 Promokodni kiriting:")
 
     elif data == "back":
         await start(update, context)
 
     elif data.startswith("confirm_"):
-        uid = int(data.replace("confirm_", ""))
-        if uid in pending_topups:
-            balances[uid] += pending_topups[uid]["amount"]
-            del pending_topups[uid]
-            await q.message.reply_text("✅ To‘lov tasdiqlandi")
-            await context.bot.send_message(uid, "✅ Hisobingiz to‘ldirildi")
+        uid = int(data.split("_")[1])
+        balances[uid] += pending_topups[uid]["amount"]
+        del pending_topups[uid]
+        await q.message.reply_text("✅ Tasdiqlandi")
+        await context.bot.send_message(uid, "✅ Hisobingiz to‘ldirildi")
 
     elif data.startswith("reject_"):
-        uid = int(data.replace("reject_", ""))
+        uid = int(data.split("_")[1])
         pending_topups.pop(uid, None)
-        await q.message.reply_text("❌ To‘lov rad etildi")
+        await q.message.reply_text("❌ Rad etildi")
 
 # ================== MATN ==================
 async def texts(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.user_data.get("await_amount"):
-        try:
-            amount = int(update.message.text)
-        except:
-            await update.message.reply_text("❌ Faqat raqam kiriting")
+    user_id = update.effective_user.id
+    text = update.message.text.strip().upper()
+
+    # PROMOKOD
+    if context.user_data.get("await_promo"):
+        context.user_data["await_promo"] = False
+
+        if text not in PROMOCODES:
+            await update.message.reply_text("❌ Noto‘g‘ri promokod")
             return
 
+        promo = PROMOCODES[text]
+
+        if promo["used"] == "per_user":
+            if text in used_promos_by_user[user_id]:
+                await update.message.reply_text("❌ Siz bu promokoddan foydalangansiz")
+                return
+            balances[user_id] += promo["amount"]
+            used_promos_by_user[user_id].add(text)
+            await update.message.reply_text(f"✅ +{promo['amount']} so‘m")
+            return
+
+        if promo["used"]:
+            await update.message.reply_text("❌ Bu promokod ishlatilgan")
+            return
+
+        promo["used"] = True
+        balances[user_id] += promo["amount"]
+        await update.message.reply_text(f"✅ +{promo['amount']} so‘m")
+
+    # TOPUP
+    elif context.user_data.get("await_amount"):
+        if not update.message.text.isdigit():
+            await update.message.reply_text("❌ Faqat raqam")
+            return
+
+        amount = int(update.message.text)
         context.user_data["await_amount"] = False
         context.user_data["await_photo"] = True
         context.user_data["amount"] = amount
 
         await update.message.reply_text(
-            f"💳 Karta:\n{CARD_NUMBER}\n{CARD_OWNER}\n\n"
-            f"{amount} so‘m to‘lab, chek rasmini yuboring"
+            f"💳 {CARD_NUMBER}\n{CARD_OWNER}\n\n"
+            f"{amount} so‘m to‘lab chek yuboring"
         )
 
 # ================== RASM ==================
@@ -193,7 +226,7 @@ async def photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = context.user_data["amount"]
         photo = update.message.photo[-1].file_id
 
-        pending_topups[user_id] = {"amount": amount, "photo": photo}
+        pending_topups[user_id] = {"amount": amount}
 
         keyboard = [
             [
@@ -209,7 +242,7 @@ async def photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
 
-        await update.message.reply_text("⏳ Admin tekshiryapti...")
+        await update.message.reply_text("⏳ Tekshiruvda...")
 
 # ================== MAIN ==================
 def main():
@@ -226,6 +259,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    
-
